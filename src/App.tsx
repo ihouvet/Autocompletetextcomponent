@@ -3,130 +3,128 @@ import { AutocompleteTextArea } from './components/AutocompleteTextArea';
 import { testContext } from './engine/context';
 import { functionRegistry } from './engine/functions';
 import { evaluateTemplate } from './engine/evaluator';
-import type { EvalResult } from './engine/evaluator';
 import type { FunctionDef } from './engine/types';
 import './App.css';
 
-const INITIAL_TEXT = `Hello {{UPPER(Myobject1.dyntext11)}}! The value is {{Myobject2.child2.myVar1}}.
-Is it big? {{IF(Myobject2.child2.myVar1 > 10, "yes, it is big", "no, it is small")}}.
-Combined: {{CONCAT(Myobject1.dyntext11, " & ", Myobject1.dyntext12)}}
-Today is: {{TODAY()}}`;
+const INITIAL_TEXT = `Hello {{UPPER(Myobject1.dyntext11)}}!
+
+The value of myVar1 is {{Myobject2.child2.myVar1}} and it is {{IF(Myobject2.child2.myVar1 > 10, "big", "small")}}.
+
+Combined: {{CONCAT(Myobject1.dyntext11, " + ", Myobject1.dyntext12)}}
+Length: {{LEN(Myobject1.dyntext11)}} characters
+Today: {{TODAY()}}`;
 
 function App() {
   const [text, setText] = useState(INITIAL_TEXT);
 
-  const result: EvalResult = useMemo(() => {
-    return evaluateTemplate(text, testContext, functionRegistry);
-  }, [text]);
+  const evalResult = useMemo(
+    () => evaluateTemplate(text, testContext, functionRegistry),
+    [text]
+  );
 
   // Group functions by category for the reference panel
   const groupedFunctions = useMemo(() => {
-    const groups = new Map<string, FunctionDef[]>();
+    const groups: Record<string, FunctionDef[]> = {};
     for (const [, fn] of functionRegistry) {
-      const list = groups.get(fn.category) || [];
-      list.push(fn);
-      groups.set(fn.category, list);
+      if (!groups[fn.category]) groups[fn.category] = [];
+      groups[fn.category].push(fn);
     }
     return groups;
   }, []);
 
+  const categoryColors: Record<string, string> = {
+    String: '#1d4ed8',
+    Date: '#92400e',
+    Number: '#065f46',
+    Logic: '#9d174d',
+  };
+
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Dynamic Text Editor</h1>
+        <h1>Dynamic Text Area</h1>
         <p>
-          Type free text mixed with <code>{'{{'}</code>expressions<code>{'}}'}</code>.
-          Autocomplete appears inside mustache braces.
+          Type free text mixed with <code>{'{{expressions}}'}</code>. Use{' '}
+          <kbd>{'{{'}{'}'}</kbd> to trigger autocomplete.
         </p>
       </header>
 
-      <div className="main-layout">
-        {/* Left column: editor + result */}
-        <div>
-          <div className="card">
+      <div className="app-layout">
+        <main className="app-main">
+          <section className="editor-section">
             <h2>Editor</h2>
             <AutocompleteTextArea
               value={text}
               onChange={setText}
               context={testContext}
               functions={functionRegistry}
-              placeholder="Type text here... Use {{ to start a dynamic expression"
-              rows={8}
+              placeholder="Type text here... Use {{ to insert dynamic expressions"
+              rows={10}
             />
-            <div className="tip-bar">
-              Type <code>{'{{'}</code> to see available objects and functions.
-              Use dot notation for nested properties: <code>{'{{Myobject2.child2.myVar1}}'}</code>
-            </div>
-          </div>
+          </section>
 
-          <div className="card result-panel">
+          <section className="result-section">
             <h2>Evaluated Result</h2>
-            <div className={`result-content ${result.errors.length > 0 ? 'has-errors' : ''}`}>
-              {result.text}
+            <div className="result-box">
+              <pre className="result-text">{evalResult.text}</pre>
             </div>
-            {result.errors.length > 0 && (
-              <div className="error-list">
-                {result.errors.map((err, i) => (
+            {evalResult.errors.length > 0 && (
+              <div className="errors">
+                <h3>Errors</h3>
+                {evalResult.errors.map((err, i) => (
                   <div key={i} className="error-item">
-                    <span className="error-expr">
-                      {err.expression ? `{{${err.expression}}}` : '{{}}'}
-                    </span>
-                    <span className="error-msg">{err.error}</span>
+                    <code>{`{{${err.expression}}}`}</code>
+                    <span>{err.error}</span>
                   </div>
                 ))}
               </div>
             )}
-          </div>
-        </div>
+          </section>
 
-        {/* Right column: context + function reference */}
-        <div>
-          <div className="card">
-            <h2>Test Data (Context)</h2>
-            <div className="context-panel">
-              <div className="context-obj">
-                <div className="context-obj-name">Myobject1</div>
-                <div className="context-prop">
-                  .dyntext11 = <span className="prop-val">"dyntext11"</span>
-                </div>
-                <div className="context-prop">
-                  .dyntext12 = <span className="prop-val">"dyntext12"</span>
-                </div>
-              </div>
-              <div className="context-obj">
-                <div className="context-obj-name">Myobject2</div>
-                <div className="context-prop">
-                  .child2.myVar1 = <span className="prop-val">12</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          <section className="context-section">
+            <h2>Test Data</h2>
+            <pre className="context-box">{JSON.stringify(testContext, null, 2)}</pre>
+          </section>
+        </main>
 
-          <div className="card">
-            <h2>Function Reference</h2>
-            <div className="fn-reference">
-              {Array.from(groupedFunctions.entries()).map(([category, fns]) => (
-                <div key={category} className="fn-category">
-                  <div className={`fn-category-title ${category}`}>{category}</div>
-                  {fns.map((fn) => {
-                    const argStr = fn.args
-                      .filter(a => a.name !== '...more')
-                      .map((a) => a.optional ? `${a.name}?` : a.name)
-                      .join(', ');
-                    return (
-                      <div key={fn.name} className="fn-item">
-                        <span className="fn-item-name">
-                          {fn.name}({argStr})
-                        </span>
-                        <span className="fn-item-desc"> — {fn.description}</span>
+        <aside className="app-sidebar">
+          <h2>Function Reference</h2>
+          {Object.entries(groupedFunctions).map(([category, fns]) => (
+            <div key={category} className="fn-group">
+              <h3 style={{ color: categoryColors[category] }}>{category}</h3>
+              {fns.map((fn) => {
+                const argStr = fn.args
+                  .filter((a) => a.name !== '...more')
+                  .map((a) => a.name)
+                  .join(', ');
+                const optionalArgs = fn.args.filter(
+                  (a) => a.optional && a.name !== '...more'
+                );
+                return (
+                  <div key={fn.name} className="fn-item">
+                    <div className="fn-sig">
+                      {fn.name}({argStr})
+                    </div>
+                    <div className="fn-desc">{fn.description}</div>
+                    {fn.args.length > 0 && (
+                      <div className="fn-args">
+                        {fn.args.map((a, i) => (
+                          <span key={i} className="fn-arg">
+                            {a.name}
+                            {a.optional ? '?' : ''}: {a.description}
+                          </span>
+                        ))}
                       </div>
-                    );
-                  })}
-                </div>
-              ))}
+                    )}
+                    {optionalArgs.length > 0 && (
+                      <div className="fn-optional">Optional args available</div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-          </div>
-        </div>
+          ))}
+        </aside>
       </div>
     </div>
   );
