@@ -12,7 +12,9 @@ The value of myVar1 is {{Myobject2.child2.myVar1}} and it is {{IF(Myobject2.chil
 
 Combined: {{CONCAT(Myobject1.dyntext11, " + ", Myobject1.dyntext12)}}
 Length: {{LEN(Myobject1.dyntext11)}} characters
-Today: {{TODAY()}}`;
+Today: {{TODAY()}}
+Yesterday was: {{TIMEAGO(DATEADD(TODAY(), -1, "days"))}}
+Last week: {{RELATIVEDATE(DATEADD(TODAY(), -7, "days"))}}`;
 
 function App() {
   const [text, setText] = useState(INITIAL_TEXT);

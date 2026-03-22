@@ -270,6 +270,59 @@ reg({
   evaluate: (date) => toDate(date).getDate(),
 });
 
+function formatRelative(date: Date, reference: Date): string {
+  const diffMs = reference.getTime() - date.getTime();
+  const absDiffMs = Math.abs(diffMs);
+  const isFuture = diffMs < 0;
+  const prefix = isFuture ? 'in ' : '';
+  const suffix = isFuture ? '' : ' ago';
+
+  const seconds = Math.floor(absDiffMs / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  const weeks = Math.floor(days / 7);
+  const months = Math.floor(days / 30.44);
+  const years = Math.floor(days / 365.25);
+
+  if (seconds < 5) return 'just now';
+  if (seconds < 60) return `${prefix}${seconds} seconds${suffix}`;
+  if (minutes === 1) return `${prefix}1 minute${suffix}`;
+  if (minutes < 60) return `${prefix}${minutes} minutes${suffix}`;
+  if (hours === 1) return `${prefix}1 hour${suffix}`;
+  if (hours < 24) return `${prefix}${hours} hours${suffix}`;
+  if (days === 1) return isFuture ? 'tomorrow' : 'yesterday';
+  if (days < 7) return `${prefix}${days} days${suffix}`;
+  if (weeks === 1) return `${prefix}1 week${suffix}`;
+  if (weeks < 5) return `${prefix}${weeks} weeks${suffix}`;
+  if (months === 1) return `${prefix}1 month${suffix}`;
+  if (months < 12) return `${prefix}${months} months${suffix}`;
+  if (years === 1) return `${prefix}1 year${suffix}`;
+  return `${prefix}${years} years${suffix}`;
+}
+
+reg({
+  name: 'TIMEAGO',
+  description: 'Returns a human-readable relative time string (e.g. "5 minutes ago", "yesterday")',
+  category: 'Date',
+  args: [{ name: 'date', description: 'The date to describe relative to now' }],
+  evaluate: (date) => formatRelative(toDate(date), new Date()),
+});
+
+reg({
+  name: 'RELATIVEDATE',
+  description: 'Returns a relative time string between two dates (e.g. "2 hours ago", "in 3 days")',
+  category: 'Date',
+  args: [
+    { name: 'date', description: 'The date to describe' },
+    { name: 'reference', description: 'The reference date (defaults to now)', optional: true },
+  ],
+  evaluate: (date, reference) => {
+    const ref = reference !== undefined ? toDate(reference) : new Date();
+    return formatRelative(toDate(date), ref);
+  },
+});
+
 // ── Number Functions ──
 
 reg({
